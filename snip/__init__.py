@@ -1,0 +1,1 @@
+"""Windows snipping tool clone."""
