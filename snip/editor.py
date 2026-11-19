@@ -11,14 +11,16 @@ from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import (QAction, QActionGroup, QColor, QFont, QGuiApplication,
                            QImage, QKeySequence, QPainter, QPixmap, QUndoStack)
 from PySide6.QtWidgets import (QColorDialog, QFileDialog, QFontComboBox, QGraphicsScene,
-                               QGraphicsView, QMainWindow, QSpinBox, QToolBar, QToolButton,
-                               QMessageBox)
+                               QGraphicsView, QLabel, QMainWindow, QSpinBox, QToolBar,
+                               QToolButton, QMessageBox)
 
-from snip import settings
+from snip import APP_NAME, settings
 from snip.tools import TOOLS
 from snip.tools.base import Options
 from snip.tools.commands import CallbackCommand, RemoveItemsCommand
 from snip.tools.text import TextItem
+
+ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.1, 8.0, 1.25  # 10% .. 800%, per click/notch
 
 _windows = []  # keep references so windows are not garbage-collected
 new_capture_hook = None  # set by the app: callable(editor) that starts a new capture
@@ -107,9 +109,7 @@ class CanvasView(QGraphicsView):
 
     def wheelEvent(self, e):
         if e.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            k = 1.15 if e.angleDelta().y() > 0 else 1 / 1.15
-            self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-            self.scale(k, k)
+            self.ed.zoom_by(ZOOM_STEP if e.angleDelta().y() > 0 else 1 / ZOOM_STEP, under_mouse=True)
             e.accept()
         else:
             super().wheelEvent(e)
@@ -124,7 +124,7 @@ def _swatch(color: QColor):
 class EditorWindow(QMainWindow):
     def __init__(self, pixmap: QPixmap):
         super().__init__()
-        self.setWindowTitle("Snip Editor")
+        self.setWindowTitle(f"{APP_NAME} - Editor")
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.confirm_unsaved = True  # tests turn this off to close without a dialog
         self.options = Options()
@@ -176,6 +176,15 @@ class EditorWindow(QMainWindow):
         self.act_redo = self._act("Redo", self.redo, QKeySequence("Ctrl+Y"))
         self.act_redo2 = self._act("Redo", self.redo, QKeySequence("Ctrl+Shift+Z"))
         self.act_delete = self._act("Delete", self.delete_selected)
+        self.act_zoom_in = self._act("+", lambda: self.zoom_by(ZOOM_STEP))
+        self.act_zoom_in.setShortcuts([QKeySequence("Ctrl++"), QKeySequence("Ctrl+=")])
+        self.act_zoom_in.setToolTip("Zoom in (Ctrl + / Ctrl+wheel)")
+        self.act_zoom_out = self._act("−", lambda: self.zoom_by(1 / ZOOM_STEP), QKeySequence("Ctrl+-"))
+        self.act_zoom_out.setToolTip("Zoom out (Ctrl - / Ctrl+wheel)")
+        self.act_zoom_fit = self._act("Fit", self.zoom_fit, QKeySequence("Ctrl+0"))
+        self.act_zoom_fit.setToolTip("Fit image to window (Ctrl 0)")
+        self.act_zoom_100 = self._act("100%", self.zoom_actual, QKeySequence("Ctrl+1"))
+        self.act_zoom_100.setToolTip("Actual size (Ctrl 1)")
         self.act_undo.setEnabled(False)
         self.act_redo.setEnabled(False)
         self.stack.canUndoChanged.connect(self.act_undo.setEnabled)
@@ -202,6 +211,15 @@ class EditorWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self.act_save)
         tb.addAction(self.act_copy)
+        tb.addSeparator()
+        tb.addAction(self.act_zoom_out)
+        self.zoom_label = QLabel("100%")
+        self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.zoom_label.setMinimumWidth(52)
+        tb.addWidget(self.zoom_label)
+        tb.addAction(self.act_zoom_in)
+        tb.addAction(self.act_zoom_fit)
+        tb.addAction(self.act_zoom_100)
 
         self.addToolBarBreak()
         ob = QToolBar("Options", self)
@@ -330,6 +348,31 @@ class EditorWindow(QMainWindow):
         self.options.bold = on
         self._apply_style(bold=on)
 
+    # ---- zoom (view only: saved/copied images are always full resolution) ----
+    def zoom_percent(self) -> int:
+        return round(self.view.transform().m11() * 100)
+
+    def _update_zoom_label(self):
+        self.zoom_label.setText(f"{self.zoom_percent()}%")
+
+    def zoom_by(self, k, under_mouse=False):
+        cur = self.view.transform().m11()
+        new = min(max(cur * k, ZOOM_MIN), ZOOM_MAX)
+        if abs(new - cur) > 1e-9:
+            anchor = (QGraphicsView.ViewportAnchor.AnchorUnderMouse if under_mouse
+                      else QGraphicsView.ViewportAnchor.AnchorViewCenter)
+            self.view.setTransformationAnchor(anchor)
+            self.view.scale(new / cur, new / cur)
+        self._update_zoom_label()
+
+    def zoom_fit(self):
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.zoom_by(1.0)  # clamp to the allowed range and refresh the label
+
+    def zoom_actual(self):
+        self.view.resetTransform()
+        self._update_zoom_label()
+
     # ---- actions ----
     def _editing_text(self):
         f = self.scene.focusItem()
@@ -410,7 +453,7 @@ class EditorWindow(QMainWindow):
             self._fitted = True
             vp, r = self.view.viewport().size(), self.scene.sceneRect()
             if r.width() > vp.width() or r.height() > vp.height():
-                self.view.fitInView(r, Qt.AspectRatioMode.KeepAspectRatio)
+                self.zoom_fit()
 
     def closeEvent(self, e):
         self.scene.clearFocus()

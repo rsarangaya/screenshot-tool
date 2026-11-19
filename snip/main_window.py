@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGroupBox, QHBoxLayout, QLabel,
                                QPushButton, QVBoxLayout, QWidget)
 
-from . import settings, startup
+from . import APP_NAME, settings, startup
 
 
 class MainWindow(QWidget):
@@ -11,7 +11,7 @@ class MainWindow(QWidget):
 
     def __init__(self, hotkey_text: str):
         super().__init__()
-        self.setWindowTitle("Snip")
+        self.setWindowTitle(APP_NAME)
         self.setMinimumWidth(420)
         lay = QVBoxLayout(self)
 

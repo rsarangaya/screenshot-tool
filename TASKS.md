@@ -13,5 +13,8 @@
 | 10 | Edge auto-scroll capture: stitched tall image; sticky bands, settle, tolerant matching, edge arming, width adjust, narrow-drag fix | developer/debugger | done | snip/overlay.py, snip/capture.py, snip/scroll_capture.py, tests/test_scroll_capture.py, tests/test_edge_arm.py |
 | 11 | Windowed app: main window, editor + New/Save buttons, unsaved-close prompt, Start with Windows, single instance | developer | done | snip/{__main__,main_window,settings,startup,single_instance,editor,overlay}.py, tests/test_app_shell.py, tests/qt_support.py |
 | 12 | Package as dist\Snip.exe with PyInstaller (run_snip.py, requirements-dev.txt) | manager | done | run_snip.py, requirements-dev.txt, PROJECT.md |
+| 13 | Text tool: Enter finishes editing (Shift+Enter = new line, Esc still finishes) | developer | done | snip/tools/text.py, tests/test_editor_text.py |
+| 14 | Editor zoom: toolbar -, %, +, Fit, 100%; Ctrl+/-/0/1; Ctrl+wheel; clamp 10-800%; saved image unaffected | developer | done | snip/editor.py, tests/test_editor_zoom.py |
+| 15 | Rename app to "Romeo's Super Snipper Snapper 32900 v21921.30" (APP_NAME in snip/__init__.py: window titles, tray); exe copied to dist under that name. Internal ids (QSettings, single-instance, registry value) kept as "Snip". Old dist\Snip.exe left in place, not deleted | developer | done | snip/{__init__,__main__,main_window,editor}.py |
 
 Status: todo | doing | review | done | blocked

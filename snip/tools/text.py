@@ -141,8 +141,13 @@ class TextItem(QGraphicsTextItem):
         self.end_edit()
 
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key.Key_Escape:
+        # Escape or Enter finishes the text; Shift+Enter inserts a new line
+        finish = e.key() == Qt.Key.Key_Escape or (
+            e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+            and not e.modifiers() & Qt.KeyboardModifier.ShiftModifier)
+        if finish:
             self.clearFocus()
+            self.end_edit()  # no-op if focus-out already ended the edit
             e.accept()
             return
         super().keyPressEvent(e)

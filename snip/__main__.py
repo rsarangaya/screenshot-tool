@@ -5,7 +5,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-from . import editor, single_instance
+from . import APP_NAME, editor, single_instance
 from .hotkey import HOTKEY_KEY, HOTKEY_MODIFIERS, HotkeyListener
 from .main_window import MainWindow
 from .overlay import Overlay
@@ -73,7 +73,7 @@ def main() -> int:
     tray.activated.connect(
         lambda r: win.bring_to_front() if r == QSystemTrayIcon.ActivationReason.Trigger else None
     )
-    tray.setToolTip(f"Snip ({combo})")
+    tray.setToolTip(f"{APP_NAME} ({combo})")
     tray.show()
 
     server.activated.connect(win.bring_to_front)
@@ -82,7 +82,7 @@ def main() -> int:
     app.installNativeEventFilter(hotkey)
     hotkey.triggered.connect(lambda: capture())
     if not hotkey.register():
-        tray.showMessage("Snip", f"Could not register {combo} (already in use).")
+        tray.showMessage(APP_NAME, f"Could not register {combo} (already in use).")
     app.aboutToQuit.connect(hotkey.unregister)
     app.aboutToQuit.connect(tray.hide)
 
